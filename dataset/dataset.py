@@ -48,7 +48,8 @@ class MVTecDataset_train(torch.utils.data.Dataset):
         self.img_paths = self.load_dataset()  # self.labels => good : 0, anomaly : 1
 
     def load_dataset(self):
-        img_paths = glob.glob(os.path.join(self.img_path, 'good') + "/*.png")
+        img_paths = glob.glob(os.path.join(self.img_path, 'good', '*.jpg')) + \
+            glob.glob(os.path.join(self.img_path, 'good', '*.png'))
         return img_paths
 
     def __len__(self):
@@ -97,14 +98,17 @@ class MVTecDataset_test(torch.utils.data.Dataset):
 
         for defect_type in defect_types:
             if defect_type == 'good':
-                img_paths = glob.glob(os.path.join(self.img_path, defect_type) + "/*.png")
+                img_paths = glob.glob(os.path.join(self.img_path, defect_type, '*.jpg')) + \
+                            glob.glob(os.path.join(self.img_path, defect_type, '*.png'))
                 img_tot_paths.extend(img_paths)
                 gt_tot_paths.extend([0] * len(img_paths))
                 tot_labels.extend([0] * len(img_paths))
                 tot_types.extend(['good'] * len(img_paths))
             else:
-                img_paths = glob.glob(os.path.join(self.img_path, defect_type) + "/*.png")
-                gt_paths = glob.glob(os.path.join(self.gt_path, defect_type) + "/*.png")
+                img_paths = glob.glob(os.path.join(self.img_path, defect_type, '*.jpg')) + \
+                            glob.glob(os.path.join(self.img_path, defect_type, '*.png'))
+                gt_paths  = glob.glob(os.path.join(self.gt_path,  defect_type, '*.jpg')) + \
+                            glob.glob(os.path.join(self.gt_path,  defect_type, '*.png'))
                 img_paths.sort()
                 gt_paths.sort()
                 img_tot_paths.extend(img_paths)
