@@ -30,6 +30,8 @@ def setup_seed(seed):
 def get_args():
     parser = ArgumentParser()
     parser.add_argument('--save_folder', default = './RD++_checkpoint_result', type=str)
+    parser.add_argument('--data_path', default='/content', type=str)
+    parser.add_argument('--num_epoch', default=0, type=int)
     parser.add_argument('--batch_size', default = 16, type=int)
     parser.add_argument('--image_size', default = 256, type=int)
     parser.add_argument('--detail_training', default='note', type = str)
@@ -47,8 +49,8 @@ def train(_class_, pars):
 
     data_transform, gt_transform = get_data_transforms(pars.image_size, pars.image_size)
     
-    train_path = '/content/' + _class_ + '/train'
-    test_path = '/content/' + _class_
+    train_path = os.path.join(pars.data_path, _class_, 'train')
+    test_path  = os.path.join(pars.data_path, _class_)
     
     if not os.path.exists(pars.save_folder + '/' + _class_):
         os.makedirs(pars.save_folder + '/' + _class_)
@@ -118,7 +120,10 @@ def train(_class_, pars):
         num_epoch = 200
     if _class_ in ['bottle']:
         num_epoch = 200
-
+    if pars.num_epoch > 0:
+        num_epoch = pars.num_epoch
+    elif 'num_epoch' not in dir():
+        num_epoch = 100  
     print(f'with class {_class_}, Training with {num_epoch} Epoch')
     
     for epoch in tqdm(range(1,num_epoch+1)):
