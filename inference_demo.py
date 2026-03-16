@@ -124,10 +124,10 @@ def infer_one(img_path, encoder, bn, decoder, proj_layer,
 #     return np.vstack([header, combined])
 
 def visualize(img_orig, binary_mask, img_name, anomaly_score, image_size):
-    img_bgr = cv2.cvtColor(img_orig, cv2.COLOR_RGB2BGR)  # giữ size gốc
+    img_bgr = cv2.cvtColor(img_orig, cv2.COLOR_RGB2BGR)  
     h, w = img_bgr.shape[:2]
     
-    mask_resized = cv2.resize(binary_mask, (w, h))  # resize mask về size gốc
+    mask_resized = cv2.resize(binary_mask, (w, h)) 
     
     contours, _ = cv2.findContours(mask_resized, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     cv2.drawContours(img_bgr, contours, -1, (0, 255, 0), 2)
@@ -169,8 +169,7 @@ def run(_class_, pars):
 
         label = 'stain' if anomaly_score > pars.threshold else 'good'
 
-        result = visualize(img_orig, amap_norm, binary_mask,
-                           img_name, anomaly_score, pars.image_size)
+        result = visualize(img_orig, binary_mask, img_name, anomaly_score, pars.image_size)
         cv2.imwrite(os.path.join(out_dir, os.path.splitext(img_name)[0] + '_result.jpg'), result)
         cv2.imwrite(os.path.join(out_dir, os.path.splitext(img_name)[0] + '_mask.png'),
                     cv2.resize(binary_mask, (pars.image_size, pars.image_size)))
