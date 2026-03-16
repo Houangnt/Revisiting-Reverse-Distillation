@@ -70,7 +70,11 @@ CUDA_VISIBLE_DEVICES=2,3 python main.py \
 ## Demo
 
 ```bash
-python inference_demo.py --checkpoint_folder RD_Stain++ --input_dir Test
+python inference_demo.py
+  --checkpoint_name wres50_stain_ep100.pth \
+  --classes stain \
+  --input_dir Good/ \
+  --threshold 0.5
 ```
 
 ---
