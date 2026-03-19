@@ -39,7 +39,7 @@ Stain_Dataset/
 └── stain/
     ├── train/
     │   └── good/
-    │       ├── 001_good.jpg
+    │       ├── 001.jpg -- good sample
     │       └── ...
     ├── test/
     │   ├── good/
@@ -47,8 +47,12 @@ Stain_Dataset/
     │   └── stain/
     │       └── ...
     └── ground_truth/
-        └── stain/
-            └── ...
+    │    └── stain/ 
+    │       └── ...   -- stain mask image
+    │
+    └── stain/
+    │       ├── 001.jpg -- stain sample
+    │       └── ...
 ```
 
 ---
