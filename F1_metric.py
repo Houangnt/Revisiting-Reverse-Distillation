@@ -15,7 +15,7 @@ from model.de_resnet import de_wide_resnet50_2
 from utils.utils_test import cal_anomaly_map, min_max_norm
 from utils.utils_train import MultiProjectionLayer
 from dataset.dataset import get_data_transforms
-
+import time
 
 def setup_seed(seed):
     torch.manual_seed(seed)
@@ -58,9 +58,11 @@ def load_model(checkpoint_folder, class_name, device):
 def infer_one(img_path, encoder, bn, decoder, proj, transform, image_size, device):
     img = cv2.imread(img_path)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    start = time.time()
 
     img_resized = cv2.resize(img / 255., (image_size, image_size))
     tensor = transform(img_resized).unsqueeze(0).float().to(device)
+    
 
     with torch.no_grad():
         inputs = encoder(tensor)
@@ -71,6 +73,8 @@ def infer_one(img_path, encoder, bn, decoder, proj, transform, image_size, devic
     anomaly_map = gaussian_filter(anomaly_map, sigma=4)
 
     anomaly_score = float(np.max(anomaly_map))
+    end = time.time()
+    print("TIME ", end-start)
 
     return anomaly_map, anomaly_score 
 
@@ -87,7 +91,6 @@ def run(args):
     for cls in ['good', args.class_name]:
         cls_dir = os.path.join(args.input_dir, cls)
         paths = sorted(glob.glob(os.path.join(cls_dir, '*.*')))
-
         img_paths.extend(paths)
         labels.extend([0 if cls == 'good' else 1] * len(paths))
 
@@ -122,43 +125,63 @@ def run(args):
 
         all_gt_px.extend(gt.ravel())
         all_pred_px.extend(anomaly_map.ravel())
-
         all_scores_img.append(anomaly_score)
         all_labels_img.append(img_label)
 
         print(f"[{i}/{len(img_paths)}] {name} | score={anomaly_score:.4f}")
 
-    all_gt_px = np.array(all_gt_px)
-    all_pred_px = np.array(all_pred_px)
+    all_gt_px      = np.array(all_gt_px)
+    all_pred_px    = np.array(all_pred_px)
+    all_scores_img = np.array(all_scores_img)
+    all_labels_img = np.array(all_labels_img)
 
-    precision, recall, thresholds = precision_recall_curve(all_gt_px, all_pred_px)
-
-    f1_scores = np.divide(
-        2 * precision * recall,
-        precision + recall,
-        out=np.zeros_like(precision),
-        where=(precision + recall) != 0,
+    # ── Pixel-level metrics (giữ nguyên) ──────────────────────────
+    px_precision, px_recall, px_thresholds = precision_recall_curve(all_gt_px, all_pred_px)
+    px_f1_scores = np.divide(
+        2 * px_precision * px_recall,
+        px_precision + px_recall,
+        out=np.zeros_like(px_precision),
+        where=(px_precision + px_recall) != 0,
     )
-    best_idx = np.argmax(f1_scores[:-1])
-    best_th = thresholds[best_idx]
+    best_px_idx = np.argmax(px_f1_scores[:-1])
+    best_px_th  = px_thresholds[best_px_idx]
+    pred_px_bin = (all_pred_px >= best_px_th).astype(np.uint8)
 
-    pred_binary = (all_pred_px >= best_th).astype(np.uint8)
-    print(f"Tỉ lệ pixel anomaly trong GT: {all_gt_px.mean():.4f}")
-    print(f"Tỉ lệ pixel predicted anomaly: {pred_binary.mean():.4f}")
-    # print(f"Số ảnh good: {labels.count(0)}, số ảnh stain: {labels.count(1)}")
-    f1 = f1_score(all_gt_px, pred_binary)
-    precision_val = precision_score(all_gt_px, pred_binary)
-    recall_val = recall_score(all_gt_px, pred_binary)
+    px_f1        = f1_score(all_gt_px, pred_px_bin)
+    px_precision_val = precision_score(all_gt_px, pred_px_bin)
+    px_recall_val    = recall_score(all_gt_px, pred_px_bin)
+    auroc_px     = roc_auc_score(all_gt_px, all_pred_px)
 
-    auroc_img = roc_auc_score(all_labels_img, all_scores_img)
+    img_precision, img_recall, img_thresholds = precision_recall_curve(all_labels_img, all_scores_img)
+    img_f1_scores = np.divide(
+        2 * img_precision * img_recall,
+        img_precision + img_recall,
+        out=np.zeros_like(img_precision),
+        where=(img_precision + img_recall) != 0,
+    )
+    best_img_idx = np.argmax(img_f1_scores[:-1])
+    best_img_th  = img_thresholds[best_img_idx]
+    pred_img_bin = (all_scores_img >= best_img_th).astype(np.uint8)
+
+    img_f1           = f1_score(all_labels_img, pred_img_bin)
+    img_precision_val = precision_score(all_labels_img, pred_img_bin)
+    img_recall_val    = recall_score(all_labels_img, pred_img_bin)
+    auroc_img        = roc_auc_score(all_labels_img, all_scores_img)
 
     print("\n" + "="*50)
-    print(f"Best threshold : {best_th:.6f}")
-    print(f"F1-score       : {f1:.4f}")
-    print(f"Precision      : {precision_val:.4f}")
-    print(f"Recall         : {recall_val:.4f}")
+    print("[Pixel-level]")
+    print(f"  Best threshold : {best_px_th:.6f}")
+    print(f"  F1-score       : {px_f1:.4f}")
+    print(f"  Precision      : {px_precision_val:.4f}")
+    print(f"  Recall         : {px_recall_val:.4f}")
+    print(f"  AUROC          : {auroc_px:.4f}")
 
-    # print(f"AUROC          : {auroc_img:.4f}")
+    print("[Image-level]")
+    print(f"  Best threshold : {best_img_th:.6f}")
+    print(f"  F1-score       : {img_f1:.4f}")
+    print(f"  Precision      : {img_precision_val:.4f}")
+    print(f"  Recall         : {img_recall_val:.4f}")
+    print(f"  AUROC          : {auroc_img:.4f}")
     print("="*50)
 
 
